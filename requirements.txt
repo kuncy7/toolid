@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+SQLAlchemy>=2.0
+pydantic>=2.7
+pydantic-settings>=2.2
+bcrypt
+PyJWT
+python-multipart
+pyserial
+prometheus-client
+pytest
+httpx
