@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .db import init_db, engine
 from .routers import auth, users, tools, scale, integrations, warehouse
@@ -7,6 +8,8 @@ from sqlmodel import Session, select
 from .models import ScaleConfig
 
 app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
