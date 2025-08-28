@@ -1,8 +1,26 @@
+# Plik: .gitignore (poprawiona wersja)
+
+# Środowisko wirtualne
 .venv/
+
+# Pliki środowiskowe (zawierają sekrety!)
 .env
+
+# Plik bazy danych SQLite
 toolid.db
+
+# Foldery cache Pythona
 __pycache__/
 *.pyc
+
+# Pliki generowane przez system operacyjny
 .DS_Store
 Thumbs.db
-static
+
+# Ignoruj wszystkie pliki w katalogach na zdjęcia...
+static/images/*
+static/icons/*
+
+# ...ale NIE ignoruj pliku .gitkeep (dzięki temu katalogi zostaną utworzone)
+!static/images/.gitkeep
+!static/icons/.gitkeep
