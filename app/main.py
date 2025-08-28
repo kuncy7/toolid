@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .db import init_db, engine
-from .routers import auth, users, tools, scale, integrations, warehouse
+from .routers import auth, users, tools, scale, integrations, warehouse, recognise
 from sqlmodel import Session, select
 from .models import ScaleConfig
 
@@ -37,3 +37,4 @@ app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
 app.include_router(scale.router, prefix="/api/scale", tags=["scale"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
 app.include_router(warehouse.router, prefix="/api/warehouse", tags=["warehouse"])
+app.include_router(recognise.router, prefix="/api/recognise", tags=["recognise"])
