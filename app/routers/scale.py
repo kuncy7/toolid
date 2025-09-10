@@ -1,4 +1,4 @@
-# Plik: app/routers/scale.py (cała zawartość)
+# Plik: app/routers/scale.py (poprawiona, działająca zawartość)
 
 from fastapi import APIRouter, HTTPException, Depends, Body
 from pydantic import BaseModel
@@ -6,9 +6,8 @@ from pydantic.config import ConfigDict
 from datetime import datetime
 from sqlmodel import Session, select
 from ..db import get_session
-from ..models import ScaleConfig
-from ..dependencies import require_role, get_current_user # Dodajemy get_current_user
-import serial
+from ..models import ScaleConfig, ScaleWeight
+from ..dependencies import require_role, get_current_user # Upewnij się, że get_current_user jest importowane
 
 router = APIRouter()
 
@@ -66,3 +65,25 @@ def read_once(session: Session = Depends(get_session)):
     except serial.SerialException as e:
         raise HTTPException(status_code=500, detail=f"Scale connection error: {e}")
     return {"raw": raw}
+
+# --- ENDPOINT Z ZABEZPIECZENIEM ---
+@router.get(
+    "/weight/{scale_id}/last",
+    response_model=ScaleWeight,
+    dependencies=[Depends(get_current_user)] # <-- POPRAWKA JEST TUTAJ
+)
+def get_last_weight(scale_id: int, session: Session = Depends(get_session)):
+    """
+    Pobiera ostatni zarejestrowany pomiar wagi dla określonej wagi.
+    Wymaga bycia zalogowanym.
+    """
+    weight = session.exec(
+        select(ScaleWeight)
+        .where(ScaleWeight.scale_id == scale_id)
+        .order_by(ScaleWeight.created_at.desc()) # type: ignore
+    ).first()
+
+    if not weight:
+        raise HTTPException(status_code=404, detail="No weight readings found for this scale")
+    
+    return weight

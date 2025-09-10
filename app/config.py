@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
     DATABASE_URL: str = "sqlite:///./toolid.db"
     CORS_ALLOW_ORIGINS: str = "*"
+    ALLOWED_LOCAL_PATH: str = "/home/pi"
 
     class Config:
         env_file = ".env"

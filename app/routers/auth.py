@@ -37,7 +37,7 @@ def login(
     user_session = UserSession(id=jti, user_id=user.id, session_token=token, expires_at=exp)
     s.add(user_session)
     
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now()
     s.add(user)
     s.commit()
     

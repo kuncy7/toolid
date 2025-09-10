@@ -16,6 +16,7 @@ from io import BytesIO
 from ..db import get_session
 from ..models import Tool, ToolLoan, ToolWeight, User
 from ..dependencies import require_role, get_current_user
+from ..config import settings
 
 router = APIRouter()
 
@@ -137,7 +138,7 @@ def assign_local_image(tool_id: int, payload: LocalImagePayload, session: Sessio
     if not tool: raise HTTPException(status_code=404, detail="Tool not found")
     source_path = Path(payload.local_path)
     if not source_path.is_file(): raise HTTPException(status_code=404, detail=f"Source file not found at: {source_path}")
-    allowed_path = Path("/home/pi").resolve()
+    allowed_path = Path(settings.ALLOWED_LOCAL_PATH).resolve()
     if not source_path.resolve().is_relative_to(allowed_path): raise HTTPException(status_code=403, detail="File path is outside the allowed directory.")
     upload_dir = Path("static/images")
     upload_dir.mkdir(exist_ok=True)
@@ -183,7 +184,7 @@ def return_tool_loan(loan_id: int, session: Session = Depends(get_session)):
         tool.quantity_available += 1
         session.add(tool)
     loan.returned = True
-    loan.return_date = datetime.utcnow()
+    loan.return_date = datetime.now()
     session.add(loan)
     session.commit()
     session.refresh(loan)

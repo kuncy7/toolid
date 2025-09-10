@@ -16,6 +16,7 @@ router = APIRouter()
 class UnreturnedLoanDetail(BaseModel):
     tool_id: int
     loan_id: int
+    name: str
     width: Optional[float]
     height: Optional[float]
     area: Optional[float]
@@ -44,6 +45,7 @@ def get_unreturned_loans_with_details(session: Session = Depends(get_session)):
     for loan, tool in results:
         response_data.append(
             UnreturnedLoanDetail(
+                name=tool.name,
                 tool_id=tool.id,
                 loan_id=loan.id,
                 width=tool.width,

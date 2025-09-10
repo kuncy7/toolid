@@ -26,8 +26,8 @@ class User(SQLModel, table=True):
     password_hash: str
     role: RoleEnum = Field(default=RoleEnum.user)
     status: StatusEnum = Field(default=StatusEnum.active)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
 
 class Tool(SQLModel, table=True):
@@ -57,15 +57,15 @@ class Tool(SQLModel, table=True):
     status: Optional[str] = None
     condition: Optional[str] = None
     image_url: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 class ToolLoan(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tool_id: int = Field(foreign_key="tool.id")
     user_id: str = Field(foreign_key="user.id")
     # --- ZMIANA Z DATE NA DATETIME ---
-    loan_date: datetime = Field(default_factory=datetime.utcnow)
+    loan_date: datetime = Field(default_factory=datetime.now)
     return_date: Optional[datetime] = None
     # ----------------------------------
     returned: bool = False
@@ -75,7 +75,7 @@ class ToolWeight(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tool_id: int = Field(foreign_key="tool.id")
     weight_value: float
-    measured_at: datetime = Field(default_factory=datetime.utcnow)
+    measured_at: datetime = Field(default_factory=datetime.now)
     measured_by: Optional[str] = Field(default=None, foreign_key="user.id")
 
 class ScaleConfig(SQLModel, table=True):
@@ -86,7 +86,7 @@ class ScaleConfig(SQLModel, table=True):
     data_bits: int = 8
     stop_bits: int = 1
     timeout: int = 500
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 class UserSession(SQLModel, table=True):
     __tablename__ = "user_sessions"
@@ -95,7 +95,7 @@ class UserSession(SQLModel, table=True):
     session_token: str = Field(index=True)
     is_active: bool = Field(default=True)
     expires_at: datetime
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.now)
 
 # ... (reszta modeli, które dodałeś wcześniej, bez zmian)
 class UserPermission(SQLModel, table=True):
@@ -113,8 +113,8 @@ class ExternalIntegration(SQLModel, table=True):
     type: str
     config: dict = Field(default={}, sa_column=Column(JSON))
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 class IntegrationLog(SQLModel, table=True):
     __tablename__ = "integration_logs"
@@ -123,14 +123,14 @@ class IntegrationLog(SQLModel, table=True):
     event_type: str
     message: Optional[str] = None
     status: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.now)
 
 class WarehouseConfig(SQLModel, table=True):
     __tablename__ = "warehouse_config"
     id: Optional[int] = Field(default=None, primary_key=True)
     provider: str
     options: dict = Field(default={}, sa_column=Column(JSON))
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 class ToolOrder(SQLModel, table=True):
     __tablename__ = "tool_orders"
@@ -138,10 +138,18 @@ class ToolOrder(SQLModel, table=True):
     external_id: Optional[str] = Field(default=None, index=True)
     items: list = Field(default=[], sa_column=Column(JSON))
     status: str = Field(default="pending")
-    ordered_at: datetime = Field(default_factory=datetime.utcnow)
+    ordered_at: datetime = Field(default_factory=datetime.now)
 
 class ToolMapping(SQLModel, table=True):
     __tablename__ = "tool_id_mapping"
     id: Optional[int] = Field(default=None, primary_key=True)
     external_tool_id: str = Field(unique=True)
     internal_tool_id: int = Field(foreign_key="tool.id")
+
+# --- NOWY MODEL ---
+class ScaleWeight(SQLModel, table=True):
+    __tablename__ = "scale_weights"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    scale_id: int = Field(foreign_key="scaleconfig.id")
+    weight: float
+    created_at: datetime = Field(default_factory=datetime.now)

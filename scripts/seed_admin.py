@@ -1,13 +1,20 @@
+# Plik: scripts/seed_admin.py (cała zawartość)
+
 from sqlmodel import Session, select
 from app.db import engine, init_db
 from app.models import User
 from app.security import hash_password
 import uuid
+import os # <-- DODAJ IMPORT
+from dotenv import load_dotenv # <-- DODAJ IMPORT
 
+# Załaduj zmienne z pliku .env, aby skrypt działał samodzielnie
+load_dotenv()
 init_db()
 
-ADMIN_EMAIL = "admin@example.com"
-ADMIN_PASS = "admin"
+# Pobierz dane ze zmiennych środowiskowych
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
 
 with Session(engine) as s:
     user = s.exec(select(User).where(User.email==ADMIN_EMAIL)).first()
