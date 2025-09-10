@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from ..db import get_session
 from ..models import ScaleConfig, ScaleWeight
 from ..dependencies import require_role, get_current_user # Upewnij się, że get_current_user jest importowane
+import serial
 
 router = APIRouter()
 
