@@ -1,3 +1,5 @@
+# Plik: app/config.py (cała, zaktualizowana zawartość)
+
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -8,6 +10,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./toolid.db"
     CORS_ALLOW_ORIGINS: str = "*"
     ALLOWED_LOCAL_PATH: str = "/home/pi"
+
+    # --- POPRAWKA JEST TUTAJ ---
+    # Dodajemy zmienne, aby Pydantic je rozpoznawał
+    ADMIN_EMAIL: str = "admin@example.com"
+    ADMIN_PASS: str = "admin"
+    # -----------------------------
 
     class Config:
         env_file = ".env"
