@@ -28,6 +28,7 @@ class ToolCreate(BaseModel):
     weight_unit: str = "g"
     width: Optional[float] = None
     height: Optional[float] = None
+    area: Optional[float] = None
     diameter: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
