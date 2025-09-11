@@ -1,20 +1,21 @@
-# Plik: app/main.py (zaktualizowana zawartość)
+# Plik: app/main.py
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from .config import settings
-from .db import init_db, engine
-from .routers import auth, users, tools, scale, integrations, warehouse, recognise
 from sqlmodel import Session, select
-from .models import ScaleConfig, ScaleWeight # <-- Dodano import ScaleWeight
-
-# --- NOWA LOGIKA DLA WAG ---
 import threading
 import time
 import serial
 import re
 import logging
+
+from .config import settings
+from .db import init_db, engine
+from .routers import auth, users, tools, scale, integrations, warehouse, recognise
+from .models import ScaleConfig, ScaleWeight
+from .exceptions import register_exception_handlers # <-- WAŻNY IMPORT
 
 # Konfiguracja loggera
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -43,39 +44,58 @@ def scale_listener(scale_config: ScaleConfig):
                     buffer += data
                     if "\n" in buffer:
                         lines = buffer.split("\n")
-                        buffer = lines.pop() # Ostatnia, potencjalnie niekompletna linia zostaje w buforze
+                        buffer = lines.pop()
                         for line in lines:
                             line = line.strip()
                             if not line: continue
                             
-                            logging.info(f"Scale {scale_config.id} raw data: '{line}'")
-                            # Szukamy linii z wagą netto, np. "Net 00594.0 g"
                             match = re.search(r"Net\s+([\d\.]+)\s+g", line)
                             if match:
                                 try:
                                     weight_value = float(match.group(1))
-                                    logging.info(f"Parsed weight from scale {scale_config.id}: {weight_value}g")
-                                    
-                                    # Zapis do bazy danych w nowej sesji
                                     with Session(engine) as session:
                                         scale_weight = ScaleWeight(scale_id=scale_config.id, weight=weight_value)
                                         session.add(scale_weight)
                                         session.commit()
                                         logging.info(f"Saved weight {weight_value}g for scale {scale_config.id}")
-                                except (ValueError, IndexError) as e:
-                                    logging.error(f"Could not parse weight from line: '{line}'. Error: {e}")
+                                except (ValueError, IndexError):
+                                    logging.error(f"Could not parse weight from line: '{line}'")
 
         except serial.SerialException as e:
             logging.error(f"Serial error with scale {scale_config.id} on {scale_config.port}: {e}")
-            logging.info("Reconnecting in 5 seconds...")
             time.sleep(5)
         except Exception as e:
             logging.error(f"An unexpected error occurred with scale listener {scale_config.id}: {e}")
-            logging.info("Restarting listener in 5 seconds...")
             time.sleep(5)
 
+# --- NOWA LOGIKA CYKLU ŻYCIA APLIKACJI (LIFESPAN) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Kod, który uruchamia się przy starcie aplikacji
+    logging.info("--- Running application startup logic ---")
+    init_db()
+    with Session(engine) as s:
+        if not s.exec(select(ScaleConfig)).first():
+            s.add(ScaleConfig())
+            s.commit()
+            logging.info("Created default scale configuration.")
+        
+        scales = s.exec(select(ScaleConfig)).all()
+        logging.info(f"Found {len(scales)} scale(s) to monitor.")
+        for scale_cfg in scales:
+            thread = threading.Thread(target=scale_listener, args=(scale_cfg,), daemon=True)
+            thread.start()
+            logging.info(f"Started listener thread for scale {scale_cfg.id} on port {scale_cfg.port}")
+    
+    yield  # W tym miejscu aplikacja jest gotowa i czeka na żądania
 
-app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION)
+    # Kod, który uruchomi się przy zamykaniu aplikacji
+    logging.info("--- Running application shutdown logic ---")
+
+app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION, lifespan=lifespan)
+
+# --- REJESTRACJA HANDLERÓW WYJĄTKÓW ---
+register_exception_handlers(app) # <-- TO NAPRAWIA BŁĄD 500
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -85,25 +105,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-def on_startup():
-    init_db()
-    with Session(engine) as s:
-        # Upewnij się, że istnieje domyślna konfiguracja wagi
-        if not s.exec(select(ScaleConfig)).first():
-            s.add(ScaleConfig())
-            s.commit()
-            logging.info("Created default scale configuration.")
-        
-        # Uruchomienie wątków nasłuchujących dla każdej wagi
-        scales = s.exec(select(ScaleConfig)).all()
-        logging.info(f"Found {len(scales)} scale(s) to monitor.")
-        for scale in scales:
-            thread = threading.Thread(target=scale_listener, args=(scale,), daemon=True)
-            thread.start()
-            logging.info(f"Started listener thread for scale {scale.id} on port {scale.port}")
-
 
 @app.get("/health")
 async def health():
