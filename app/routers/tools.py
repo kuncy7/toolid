@@ -47,7 +47,7 @@ class ToolUpdate(BaseModel):
     area: Optional[float] = None
     diameter: Optional[str] = None
     type: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[str] = None # To pole jest ignorowane przy aktualizacji
     condition: Optional[str] = None
     image_url: Optional[str] = None
 
@@ -62,8 +62,7 @@ class Base64ImagePayload(BaseModel):
 
 class Message(BaseModel):
     message: str
-
-# --- ZAKTUALIZOWANY SCHEMAT DLA ZWROTU ---
+    
 class ToolReturnPayload(BaseModel):
     tool_id: int
 
@@ -101,7 +100,8 @@ class ToolOut(BaseModel):
 
 @router.get("", response_model=List[ToolOut], dependencies=[Depends(get_current_user)])
 def list_tools(session: Session = Depends(get_session)):
-    return session.exec(select(ToolModel)).all()
+    tools = session.exec(select(ToolModel)).all()
+    return tools
 
 @router.post("", response_model=ToolOut, status_code=201, dependencies=[Depends(require_role("admin", "moderator"))])
 def create_tool(payload: ToolCreate, session: Session = Depends(get_session)):
@@ -139,6 +139,7 @@ def update_tool(tool_id: int, data: ToolUpdate, session: Session = Depends(get_s
     for k, v in update_data.items():
         setattr(obj, k, v)
     
+    obj.updated_at = datetime.now() # <-- POPRAWKA: Jawne ustawienie daty modyfikacji
     session.add(obj)
     session.commit()
     session.refresh(obj)
@@ -161,7 +162,7 @@ def delete_tool(tool_id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"message": "Tool deleted successfully"}
 
-# --- ZAKTUALIZOWANY ENDPOINT ZWROTU ---
+# --- Endpoint do zwrotu narzędzia ---
 @router.post("/return", response_model=ToolLoan, dependencies=[Depends(require_role("admin", "moderator"))])
 def return_tool(payload: ToolReturnPayload, session: Session = Depends(get_session)):
     tool = session.get(ToolModel, payload.tool_id)
@@ -171,7 +172,6 @@ def return_tool(payload: ToolReturnPayload, session: Session = Depends(get_sessi
     if tool.quantity_available >= tool.quantity_total:
         raise OperationForbidden(reason="Cannot return tool: all items are already in stock.")
 
-    # Znajdź najstarsze, niezwrócone wypożyczenie tego narzędzia (niezależnie od usera)
     loan_to_return = session.exec(
         select(ToolLoan)
         .where(ToolLoan.tool_id == payload.tool_id)
@@ -180,11 +180,12 @@ def return_tool(payload: ToolReturnPayload, session: Session = Depends(get_sessi
     ).first()
 
     if not loan_to_return:
-        raise ResourceNotFound(name="Active loan for tool", resource_id=payload.tool_id)
+        raise ResourceNotFound(name="Active loan for this tool", resource_id=payload.tool_id)
 
     loan_to_return.returned = True
     loan_to_return.return_date = datetime.now()
     tool.quantity_available += 1
+    tool.updated_at = datetime.now() # <-- POPRAWKA: Aktualizujemy też narzędzie
     
     session.add(loan_to_return)
     session.add(tool)
@@ -208,19 +209,18 @@ def upload_base64_image(tool_id: int, payload: Base64ImagePayload, session: Sess
         raise OperationForbidden(reason=f"Invalid Base64 data: {e}")
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     image_dir = Path("static/images")
-    icon_dir = Path("static/icons")
     image_dir.mkdir(exist_ok=True)
-    icon_dir.mkdir(exist_ok=True)
+    
     image_path = image_dir / unique_filename
-    icon_path = icon_dir / unique_filename
+    
     try:
         with Image.open(BytesIO(image_bytes)) as img:
             img.save(image_path)
-            img.thumbnail((100, 100))
-            img.save(icon_path)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process and save image: {e}")
+    
     tool.image_url = f"/static/images/{unique_filename}"
+    tool.updated_at = datetime.now() # <-- POPRAWKA: Jawne ustawienie daty modyfikacji
     session.add(tool)
     session.commit()
     session.refresh(tool)
@@ -244,7 +244,10 @@ def assign_local_image(tool_id: int, payload: LocalImagePayload, session: Sessio
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to copy file: {e}")
     tool.image_url = f"/static/images/{new_filename}"
-    session.add(tool); session.commit(); session.refresh(tool)
+    tool.updated_at = datetime.now() # <-- POPRAWKA: Jawne ustawienie daty modyfikacji
+    session.add(tool)
+    session.commit()
+    session.refresh(tool)
     return tool
 
 # --- Endpointy dla Wypożyczeń ---
@@ -266,6 +269,7 @@ def create_loan(tool_id: int, session: Session = Depends(get_session), current_u
         raise OperationForbidden(reason="No available items for this tool.")
     
     tool.quantity_available -= 1
+    tool.updated_at = datetime.now() # <-- POPRAWKA: Aktualizujemy też narzędzie
     session.add(tool)
 
     loan = ToolLoan(tool_id=tool_id, user_id=user_id)
@@ -277,7 +281,8 @@ def create_loan(tool_id: int, session: Session = Depends(get_session), current_u
 # --- Endpointy dla Pomiarów Wagi ---
 @router.get("/{tool_id}/weights", response_model=List[ToolWeight], dependencies=[Depends(get_current_user)])
 def get_tool_weights_history(tool_id: int, session: Session = Depends(get_session)):
-    return session.exec(select(ToolWeight).where(ToolWeight.tool_id == tool_id)).all()
+    weights = session.exec(select(ToolWeight).where(ToolWeight.tool_id == tool_id)).all()
+    return weights
 
 @router.post("/{tool_id}/weights", response_model=ToolWeight, status_code=201, dependencies=[Depends(get_current_user)])
 def add_weight_measurement(tool_id: int, payload: WeightCreate, session: Session = Depends(get_session), current_user: dict = Depends(get_current_user)):
