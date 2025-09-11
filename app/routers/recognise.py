@@ -11,6 +11,7 @@ from ..dependencies import require_role
 
 router = APIRouter()
 
+
 # --- Schemat Pydantic dla odpowiedzi ---
 # Definiuje dokładną strukturę JSON, jaką otrzyma klient.
 class UnreturnedLoanDetail(BaseModel):
@@ -22,12 +23,14 @@ class UnreturnedLoanDetail(BaseModel):
     area: Optional[float]
     mass: Optional[float]  # Będzie to pole weight_value z bazy
 
+
 # --- Endpoint API ---
+
 
 @router.get(
     "/loans",
     response_model=List[UnreturnedLoanDetail],
-    dependencies=[Depends(require_role("admin", "moderator"))]
+    dependencies=[Depends(require_role("admin", "moderator"))],
 )
 def get_unreturned_loans_with_details(session: Session = Depends(get_session)):
     """
@@ -37,9 +40,9 @@ def get_unreturned_loans_with_details(session: Session = Depends(get_session)):
     # Tworzymy zapytanie, które łączy tabele ToolLoan i Tool,
     # a następnie filtruje tylko te wypożyczenia, które nie zostały zwrócone.
     statement = select(ToolLoan, Tool).join(Tool).where(ToolLoan.returned == False)
-    
+
     results = session.exec(statement).all()
-    
+
     # Przetwarzamy wyniki z bazy danych na format zdefiniowany w UnreturnedLoanDetail
     response_data = []
     for loan, tool in results:
@@ -51,8 +54,8 @@ def get_unreturned_loans_with_details(session: Session = Depends(get_session)):
                 width=tool.width,
                 height=tool.height,
                 area=tool.area,
-                mass=tool.weight_value, # Mapujemy weight_value na pole mass
+                mass=tool.weight_value,  # Mapujemy weight_value na pole mass
             )
         )
-        
+
     return response_data

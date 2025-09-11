@@ -8,10 +8,5 @@ bcrypt
 PyJWT
 python-multipart
 pyserial
-prometheus-client
-pytest
-httpx
 Pillow
-# Development & CI/CD Tools
-pytest
-flake8
+python-dotenv

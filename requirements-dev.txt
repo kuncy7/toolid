@@ -1,0 +1,11 @@
+# Plik: requirements-dev.txt
+# Zależności deweloperskie i testowe
+
+# Dołącz zależności produkcyjne
+-r requirements.txt
+
+# Pakiety deweloperskie
+pytest
+httpx
+flake8
+black

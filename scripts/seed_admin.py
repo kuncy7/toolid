@@ -5,8 +5,8 @@ from app.db import engine, init_db
 from app.models import User
 from app.security import hash_password
 import uuid
-import os # <-- DODAJ IMPORT
-from dotenv import load_dotenv # <-- DODAJ IMPORT
+import os  # <-- DODAJ IMPORT
+from dotenv import load_dotenv  # <-- DODAJ IMPORT
 
 # Załaduj zmienne z pliku .env, aby skrypt działał samodzielnie
 load_dotenv()
@@ -17,7 +17,7 @@ ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
 
 with Session(engine) as s:
-    user = s.exec(select(User).where(User.email==ADMIN_EMAIL)).first()
+    user = s.exec(select(User).where(User.email == ADMIN_EMAIL)).first()
     if not user:
         u = User(
             id=str(uuid.uuid4()),
@@ -25,9 +25,10 @@ with Session(engine) as s:
             last_name="User",
             email=ADMIN_EMAIL,
             password_hash=hash_password(ADMIN_PASS),
-            role="admin"
+            role="admin",
         )
-        s.add(u); s.commit()
+        s.add(u)
+        s.commit()
         print("Created admin:", ADMIN_EMAIL, ADMIN_PASS)
     else:
         print("Admin exists")

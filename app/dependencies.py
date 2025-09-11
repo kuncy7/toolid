@@ -5,13 +5,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select
 from .security import decode_token
 from .db import get_session
-from .models import UserSession # Import modelu sesji
+from .models import UserSession  # Import modelu sesji
 
 bearer = HTTPBearer(auto_error=False)
 
+
 async def get_current_user(
     creds: HTTPAuthorizationCredentials = Depends(bearer),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     if not creds:
         raise HTTPException(401, "Not authenticated")
@@ -33,9 +34,11 @@ async def get_current_user(
 
     return payload  # {sub, role, exp, jti}
 
+
 def require_role(*roles: str):
-    def _checker(user = Depends(get_current_user)):
+    def _checker(user=Depends(get_current_user)):
         if user.get("role") not in roles:
             raise HTTPException(403, "Forbidden")
         return user
+
     return _checker

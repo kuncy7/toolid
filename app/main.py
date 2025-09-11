@@ -15,10 +15,13 @@ from .config import settings
 from .db import init_db, engine
 from .routers import auth, users, tools, scale, integrations, warehouse, recognise
 from .models import ScaleConfig, ScaleWeight
-from .exceptions import register_exception_handlers # <-- WAŻNY IMPORT
+from .exceptions import register_exception_handlers  # <-- WAŻNY IMPORT
 
 # Konfiguracja loggera
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 def scale_listener(scale_config: ScaleConfig):
     """
@@ -30,13 +33,19 @@ def scale_listener(scale_config: ScaleConfig):
             ser = serial.Serial(
                 port=scale_config.port,
                 baudrate=scale_config.baudrate,
-                parity=getattr(serial, f'PARITY_{scale_config.parity.upper()}', serial.PARITY_NONE),
-                stopbits=getattr(serial, f'STOPBITS_{scale_config.stop_bits}', serial.STOPBITS_ONE),
-                bytesize=getattr(serial, f'EIGHTBITS', serial.EIGHTBITS),
-                timeout=scale_config.timeout / 1000.0
+                parity=getattr(
+                    serial, f"PARITY_{scale_config.parity.upper()}", serial.PARITY_NONE
+                ),
+                stopbits=getattr(
+                    serial, f"STOPBITS_{scale_config.stop_bits}", serial.STOPBITS_ONE
+                ),
+                bytesize=getattr(serial, f"EIGHTBITS", serial.EIGHTBITS),
+                timeout=scale_config.timeout / 1000.0,
             )
-            logging.info(f"Successfully connected to scale {scale_config.id} on {scale_config.port}")
-            
+            logging.info(
+                f"Successfully connected to scale {scale_config.id} on {scale_config.port}"
+            )
+
             buffer = ""
             while True:
                 data = ser.read(ser.in_waiting or 1).decode(errors="ignore")
@@ -47,26 +56,39 @@ def scale_listener(scale_config: ScaleConfig):
                         buffer = lines.pop()
                         for line in lines:
                             line = line.strip()
-                            if not line: continue
-                            
+                            if not line:
+                                continue
+
                             match = re.search(r"Net\s+([\d\.]+)\s+g", line)
                             if match:
                                 try:
                                     weight_value = float(match.group(1))
                                     with Session(engine) as session:
-                                        scale_weight = ScaleWeight(scale_id=scale_config.id, weight=weight_value)
+                                        scale_weight = ScaleWeight(
+                                            scale_id=scale_config.id,
+                                            weight=weight_value,
+                                        )
                                         session.add(scale_weight)
                                         session.commit()
-                                        logging.info(f"Saved weight {weight_value}g for scale {scale_config.id}")
+                                        logging.info(
+                                            f"Saved weight {weight_value}g for scale {scale_config.id}"
+                                        )
                                 except (ValueError, IndexError):
-                                    logging.error(f"Could not parse weight from line: '{line}'")
+                                    logging.error(
+                                        f"Could not parse weight from line: '{line}'"
+                                    )
 
         except serial.SerialException as e:
-            logging.error(f"Serial error with scale {scale_config.id} on {scale_config.port}: {e}")
+            logging.error(
+                f"Serial error with scale {scale_config.id} on {scale_config.port}: {e}"
+            )
             time.sleep(5)
         except Exception as e:
-            logging.error(f"An unexpected error occurred with scale listener {scale_config.id}: {e}")
+            logging.error(
+                f"An unexpected error occurred with scale listener {scale_config.id}: {e}"
+            )
             time.sleep(5)
+
 
 # --- NOWA LOGIKA CYKLU ŻYCIA APLIKACJI (LIFESPAN) ---
 @asynccontextmanager
@@ -79,23 +101,28 @@ async def lifespan(app: FastAPI):
             s.add(ScaleConfig())
             s.commit()
             logging.info("Created default scale configuration.")
-        
+
         scales = s.exec(select(ScaleConfig)).all()
         logging.info(f"Found {len(scales)} scale(s) to monitor.")
         for scale_cfg in scales:
-            thread = threading.Thread(target=scale_listener, args=(scale_cfg,), daemon=True)
+            thread = threading.Thread(
+                target=scale_listener, args=(scale_cfg,), daemon=True
+            )
             thread.start()
-            logging.info(f"Started listener thread for scale {scale_cfg.id} on port {scale_cfg.port}")
-    
+            logging.info(
+                f"Started listener thread for scale {scale_cfg.id} on port {scale_cfg.port}"
+            )
+
     yield  # W tym miejscu aplikacja jest gotowa i czeka na żądania
 
     # Kod, który uruchomi się przy zamykaniu aplikacji
     logging.info("--- Running application shutdown logic ---")
 
+
 app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION, lifespan=lifespan)
 
 # --- REJESTRACJA HANDLERÓW WYJĄTKÓW ---
-register_exception_handlers(app) # <-- TO NAPRAWIA BŁĄD 500
+register_exception_handlers(app)  # <-- TO NAPRAWIA BŁĄD 500
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -106,15 +133,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
 app.include_router(scale.router, prefix="/api/scale", tags=["scale"])
-app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
+app.include_router(
+    integrations.router, prefix="/api/integrations", tags=["integrations"]
+)
 app.include_router(warehouse.router, prefix="/api/warehouse", tags=["warehouse"])
 app.include_router(recognise.router, prefix="/api/recognise", tags=["recognise"])
-

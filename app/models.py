@@ -6,17 +6,21 @@ from datetime import datetime, date
 from sqlmodel import SQLModel, Field, Column, JSON
 import uuid
 
+
 # --- Enumy bez zmian ---
 class RoleEnum(str, Enum):
     admin = "admin"
     moderator = "moderator"
     user = "user"
 
+
 class StatusEnum(str, Enum):
     active = "active"
     inactive = "inactive"
 
+
 # --- Modele z bazą danych ---
+
 
 class User(SQLModel, table=True):
     id: str = Field(primary_key=True)
@@ -30,11 +34,16 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
 
+
 class Tool(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
-    quantity_total: int = Field(default=1, description="Całkowita liczba posiadanych sztuk")
-    quantity_available: int = Field(default=1, description="Liczba sztuk aktualnie dostępnych")
+    quantity_total: int = Field(
+        default=1, description="Całkowita liczba posiadanych sztuk"
+    )
+    quantity_available: int = Field(
+        default=1, description="Liczba sztuk aktualnie dostępnych"
+    )
 
     # --- ZMIANA: Precyzyjna waga ---
     weight_value: Optional[float] = Field(default=None, description="Wartość wagi")
@@ -44,7 +53,9 @@ class Tool(SQLModel, table=True):
     # --- ZMIANA: Precyzyjne wymiary ---
     width: Optional[float] = Field(default=None, description="Szerokość w mm")
     height: Optional[float] = Field(default=None, description="Wysokość w mm")
-    area: Optional[float] = Field(default=None, description="Pole powierzchni w mm^2 (obliczane zewnętrznie)")
+    area: Optional[float] = Field(
+        default=None, description="Pole powierzchni w mm^2 (obliczane zewnętrznie)"
+    )
     # -----------------------------------
 
     # --- USUNIĘTE POLA ---
@@ -52,13 +63,16 @@ class Tool(SQLModel, table=True):
     # weight: Optional[str] = None
     # ---------------------
 
-    diameter: Optional[str] = None # To pole zostaje, może być przydatne dla wierteł itp.
+    diameter: Optional[str] = (
+        None  # To pole zostaje, może być przydatne dla wierteł itp.
+    )
     type: Optional[str] = None
     status: Optional[str] = None
     condition: Optional[str] = None
     image_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
 
 class ToolLoan(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -70,6 +84,7 @@ class ToolLoan(SQLModel, table=True):
     # ----------------------------------
     returned: bool = False
 
+
 # --- Pozostałe modele bez zmian ---
 class ToolWeight(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -77,6 +92,7 @@ class ToolWeight(SQLModel, table=True):
     weight_value: float
     measured_at: datetime = Field(default_factory=datetime.now)
     measured_by: Optional[str] = Field(default=None, foreign_key="user.id")
+
 
 class ScaleConfig(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -88,6 +104,7 @@ class ScaleConfig(SQLModel, table=True):
     timeout: int = 500
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
 class UserSession(SQLModel, table=True):
     __tablename__ = "user_sessions"
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
@@ -97,6 +114,7 @@ class UserSession(SQLModel, table=True):
     expires_at: datetime
     created_at: datetime = Field(default_factory=datetime.now)
 
+
 # ... (reszta modeli, które dodałeś wcześniej, bez zmian)
 class UserPermission(SQLModel, table=True):
     __tablename__ = "user_permissions"
@@ -105,6 +123,7 @@ class UserPermission(SQLModel, table=True):
     module: str
     permission: str
     granted: bool = Field(default=True)
+
 
 class ExternalIntegration(SQLModel, table=True):
     __tablename__ = "external_integrations"
@@ -116,6 +135,7 @@ class ExternalIntegration(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
 class IntegrationLog(SQLModel, table=True):
     __tablename__ = "integration_logs"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -125,12 +145,14 @@ class IntegrationLog(SQLModel, table=True):
     status: str
     created_at: datetime = Field(default_factory=datetime.now)
 
+
 class WarehouseConfig(SQLModel, table=True):
     __tablename__ = "warehouse_config"
     id: Optional[int] = Field(default=None, primary_key=True)
     provider: str
     options: dict = Field(default={}, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.now)
+
 
 class ToolOrder(SQLModel, table=True):
     __tablename__ = "tool_orders"
@@ -140,11 +162,13 @@ class ToolOrder(SQLModel, table=True):
     status: str = Field(default="pending")
     ordered_at: datetime = Field(default_factory=datetime.now)
 
+
 class ToolMapping(SQLModel, table=True):
     __tablename__ = "tool_id_mapping"
     id: Optional[int] = Field(default=None, primary_key=True)
     external_tool_id: str = Field(unique=True)
     internal_tool_id: int = Field(foreign_key="tool.id")
+
 
 # --- NOWY MODEL ---
 class ScaleWeight(SQLModel, table=True):

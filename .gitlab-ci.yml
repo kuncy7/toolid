@@ -1,32 +1,26 @@
-# Plik: .gitlab-ci.yml (cała zawartość)
+# Plik: .gitlab-ci.yml
 
-# Krok 1: Wybierz środowisko, w którym będą uruchamiane zadania.
-# Używamy oficjalnego obrazu Dockera z Pythonem w wersji 3.11.
 image: python:3.11
 
-# Krok 2: Zdefiniuj etapy (kolejność) naszej automatyzacji.
-# Najpierw sprawdzimy kod (lint), potem uruchomimy testy (test).
 stages:
   - lint
   - test
 
-# Krok 3: Zdefiniuj komendy, które mają się wykonać PRZED każdym zadaniem.
 before_script:
   - echo "Installing dependencies..."
-  - pip install -r requirements.txt
+  # Używamy pliku deweloperskiego do instalacji w CI/CD
+  - pip install -r requirements-dev.txt
 
-# Krok 4: Zdefiniuj pierwsze zadanie: "linting" (sprawdzanie kodu).
 lint_code:
-  stage: lint  # Przypisz to zadanie do etapu 'lint'.
+  stage: lint
   script:
+    - echo "Checking code formatting..."
+    - black --check .
     - echo "Checking for syntax errors and undefined names..."
-    # Uruchom flake8, ale sprawdzaj tylko krytyczne błędy (E9xx, Fxxx).
-    # To wyłapie błędy takie jak brakujący import 'Depends', ale nie będzie czepiać się stylu.
     - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-# Krok 5: Zdefiniuj drugie zadanie: "testing" (uruchamianie testów).
 run_tests:
-  stage: test  # Przypisz to zadanie do etapu 'test'.
+  stage: test
   script:
     - echo "Running tests with pytest..."
     - pytest
