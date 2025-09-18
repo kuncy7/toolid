@@ -23,13 +23,14 @@ logging.basicConfig(
 )
 
 
-def scale_listener(scale_config: ScaleConfig):
+def scale_listener(scale_config: ScaleConfig, stop_event: threading.Event):
     """
     Funkcja działająca w osobnym wątku, nasłuchująca na porcie szeregowym
     i zapisująca odczyty wagi do bazy danych.
     """
-    while True:
+    while not stop_event.is_set():
         try:
+            logging.info(f"Attempting to connect to scale {scale_config.id} on {scale_config.port}...")
             ser = serial.Serial(
                 port=scale_config.port,
                 baudrate=scale_config.baudrate,
@@ -47,7 +48,7 @@ def scale_listener(scale_config: ScaleConfig):
             )
 
             buffer = ""
-            while True:
+            while not stop_event.is_set():
                 data = ser.read(ser.in_waiting or 1).decode(errors="ignore")
                 if data:
                     buffer += data
@@ -82,12 +83,12 @@ def scale_listener(scale_config: ScaleConfig):
             logging.error(
                 f"Serial error with scale {scale_config.id} on {scale_config.port}: {e}"
             )
-            time.sleep(5)
+            stop_event.wait(5)  # Czekaj 5s lub do sygnału zatrzymania
         except Exception as e:
             logging.error(
                 f"An unexpected error occurred with scale listener {scale_config.id}: {e}"
             )
-            time.sleep(5)
+            stop_event.wait(5)  # Czekaj 5s lub do sygnału zatrzymania
 
 
 # --- NOWA LOGIKA CYKLU ŻYCIA APLIKACJI (LIFESPAN) ---
@@ -96,6 +97,7 @@ async def lifespan(app: FastAPI):
     # Kod, który uruchamia się przy starcie aplikacji
     logging.info("--- Running application startup logic ---")
     init_db()
+    app.state.scale_threads = []
     with Session(engine) as s:
         if not s.exec(select(ScaleConfig)).first():
             s.add(ScaleConfig())
@@ -105,9 +107,11 @@ async def lifespan(app: FastAPI):
         scales = s.exec(select(ScaleConfig)).all()
         logging.info(f"Found {len(scales)} scale(s) to monitor.")
         for scale_cfg in scales:
+            stop_event = threading.Event()
             thread = threading.Thread(
-                target=scale_listener, args=(scale_cfg,), daemon=True
+                target=scale_listener, args=(scale_cfg, stop_event), daemon=True
             )
+            app.state.scale_threads.append({"thread": thread, "stop_event": stop_event, "id": scale_cfg.id})
             thread.start()
             logging.info(
                 f"Started listener thread for scale {scale_cfg.id} on port {scale_cfg.port}"
@@ -117,6 +121,16 @@ async def lifespan(app: FastAPI):
 
     # Kod, który uruchomi się przy zamykaniu aplikacji
     logging.info("--- Running application shutdown logic ---")
+    logging.info("Stopping all scale listener threads...")
+    for item in app.state.scale_threads:
+        item["stop_event"].set()
+
+    for item in app.state.scale_threads:
+        # Daj wątkowi 2 sekundy na zakończenie
+        item["thread"].join(timeout=2)
+        if item["thread"].is_alive():
+            logging.warning(f"Thread for scale {item['id']} did not terminate gracefully.")
+    logging.info("All scale listener threads have been processed.")
 
 
 app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION, lifespan=lifespan)
