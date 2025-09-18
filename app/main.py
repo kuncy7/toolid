@@ -30,7 +30,9 @@ def scale_listener(scale_config: ScaleConfig, stop_event: threading.Event):
     """
     while not stop_event.is_set():
         try:
-            logging.info(f"Attempting to connect to scale {scale_config.id} on {scale_config.port}...")
+            logging.info(
+                f"Attempting to connect to scale {scale_config.id} on {scale_config.port}..."
+            )
             ser = serial.Serial(
                 port=scale_config.port,
                 baudrate=scale_config.baudrate,
@@ -111,7 +113,9 @@ async def lifespan(app: FastAPI):
             thread = threading.Thread(
                 target=scale_listener, args=(scale_cfg, stop_event), daemon=True
             )
-            app.state.scale_threads.append({"thread": thread, "stop_event": stop_event, "id": scale_cfg.id})
+            app.state.scale_threads.append(
+                {"thread": thread, "stop_event": stop_event, "id": scale_cfg.id}
+            )
             thread.start()
             logging.info(
                 f"Started listener thread for scale {scale_cfg.id} on port {scale_cfg.port}"
@@ -129,7 +133,9 @@ async def lifespan(app: FastAPI):
         # Daj wątkowi 2 sekundy na zakończenie
         item["thread"].join(timeout=2)
         if item["thread"].is_alive():
-            logging.warning(f"Thread for scale {item['id']} did not terminate gracefully.")
+            logging.warning(
+                f"Thread for scale {item['id']} did not terminate gracefully."
+            )
     logging.info("All scale listener threads have been processed.")
 
 
