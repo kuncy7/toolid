@@ -70,6 +70,7 @@ class Tool(SQLModel, table=True):
     status: Optional[str] = None
     condition: Optional[str] = None
     image_url: Optional[str] = None
+    icons_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

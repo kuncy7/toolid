@@ -37,6 +37,7 @@ class ToolCreate(BaseModel):
     status: Optional[str] = "w magazynie"
     condition: Optional[str] = None
     image_url: Optional[str] = None
+    icons_url: Optional[str] = None
 
 
 class ToolUpdate(BaseModel):
@@ -52,6 +53,7 @@ class ToolUpdate(BaseModel):
     status: Optional[str] = None  # To pole jest ignorowane przy aktualizacji
     condition: Optional[str] = None
     image_url: Optional[str] = None
+    icons_url: Optional[str] = None
 
 
 class WeightCreate(BaseModel):
@@ -91,6 +93,7 @@ class ToolOut(BaseModel):
     type: Optional[str] = None
     condition: Optional[str] = None
     image_url: Optional[str] = None
+    icons_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -266,13 +269,18 @@ def upload_base64_image(
         raise OperationForbidden(reason=f"Invalid Base64 data: {e}")
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     image_dir = Path("static/images")
+    icon_dir = Path("static/icons")
     image_dir.mkdir(exist_ok=True)
+    icon_dir.mkdir(exist_ok=True)
 
     image_path = image_dir / unique_filename
+    icon_path = icon_dir / unique_filename
 
     try:
         with Image.open(BytesIO(image_bytes)) as img:
             img.save(image_path)
+            img.thumbnail((100, 100))
+            img.save(icon_path)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -280,6 +288,7 @@ def upload_base64_image(
         )
 
     tool.image_url = f"/static/images/{unique_filename}"
+    tool.icons_url = f"/static/icons/{unique_filename}"
     tool.updated_at = datetime.now()  # <-- POPRAWKA: Jawne ustawienie daty modyfikacji
     session.add(tool)
     session.commit()
@@ -305,18 +314,25 @@ def assign_local_image(
     if not source_path.resolve().is_relative_to(allowed_path):
         raise OperationForbidden(reason="File path is outside the allowed directory.")
     upload_dir = Path("static/images")
+    icon_dir = Path("static/icons")
     upload_dir.mkdir(exist_ok=True)
+    icon_dir.mkdir(exist_ok=True)
     file_extension = source_path.suffix
     new_filename = f"{uuid.uuid4()}{file_extension}"
     destination_path = upload_dir / new_filename
+    icon_path = icon_dir / new_filename
     try:
-        shutil.copy(source_path, destination_path)
+        with Image.open(source_path) as img:
+            img.save(destination_path)
+            img.thumbnail((100, 100))
+            img.save(icon_path)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to copy file: {e}",
+            detail=f"Failed to process and save image: {e}",
         )
     tool.image_url = f"/static/images/{new_filename}"
+    tool.icons_url = f"/static/icons/{new_filename}"
     tool.updated_at = datetime.now()  # <-- POPRAWKA: Jawne ustawienie daty modyfikacji
     session.add(tool)
     session.commit()
