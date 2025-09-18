@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str = "admin@example.com"
     ADMIN_PASS: str = "admin"
     # -----------------------------
-    
+
     SCALE_LISTENER_ENABLED: bool = True
 
     class Config:
