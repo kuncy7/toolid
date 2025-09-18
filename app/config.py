@@ -10,13 +10,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
     DATABASE_URL: str = "sqlite:///./toolid.db"
     CORS_ALLOW_ORIGINS: str = "*"
-    ALLOWED_LOCAL_PATH: str = "/home/pi"
+    ALLOWED_LOCAL_PATH: str = "/home/stacho"
 
     # --- POPRAWKA JEST TUTAJ ---
     # Dodajemy zmienne, aby Pydantic je rozpoznawał
     ADMIN_EMAIL: str = "admin@example.com"
     ADMIN_PASS: str = "admin"
     # -----------------------------
+    
+    SCALE_LISTENER_ENABLED: bool = True
 
     class Config:
         env_file = ".env"

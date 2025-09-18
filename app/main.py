@@ -100,43 +100,48 @@ async def lifespan(app: FastAPI):
     logging.info("--- Running application startup logic ---")
     init_db()
     app.state.scale_threads = []
-    with Session(engine) as s:
-        if not s.exec(select(ScaleConfig)).first():
-            s.add(ScaleConfig())
-            s.commit()
-            logging.info("Created default scale configuration.")
 
-        scales = s.exec(select(ScaleConfig)).all()
-        logging.info(f"Found {len(scales)} scale(s) to monitor.")
-        for scale_cfg in scales:
-            stop_event = threading.Event()
-            thread = threading.Thread(
-                target=scale_listener, args=(scale_cfg, stop_event), daemon=True
-            )
-            app.state.scale_threads.append(
-                {"thread": thread, "stop_event": stop_event, "id": scale_cfg.id}
-            )
-            thread.start()
-            logging.info(
-                f"Started listener thread for scale {scale_cfg.id} on port {scale_cfg.port}"
-            )
+    if settings.SCALE_LISTENER_ENABLED:
+        with Session(engine) as s:
+            if not s.exec(select(ScaleConfig)).first():
+                s.add(ScaleConfig())
+                s.commit()
+                logging.info("Created default scale configuration.")
+
+            scales = s.exec(select(ScaleConfig)).all()
+            logging.info(f"Found {len(scales)} scale(s) to monitor.")
+            for scale_cfg in scales:
+                stop_event = threading.Event()
+                thread = threading.Thread(
+                    target=scale_listener, args=(scale_cfg, stop_event), daemon=True
+                )
+                app.state.scale_threads.append(
+                    {"thread": thread, "stop_event": stop_event, "id": scale_cfg.id}
+                )
+                thread.start()
+                logging.info(
+                    f"Started listener thread for scale {scale_cfg.id} on port {scale_cfg.port}"
+                )
+    else:
+        logging.info("Scale listener is disabled by configuration.")
 
     yield  # W tym miejscu aplikacja jest gotowa i czeka na żądania
 
     # Kod, który uruchomi się przy zamykaniu aplikacji
-    logging.info("--- Running application shutdown logic ---")
-    logging.info("Stopping all scale listener threads...")
-    for item in app.state.scale_threads:
-        item["stop_event"].set()
+    if settings.SCALE_LISTENER_ENABLED:
+        logging.info("--- Running application shutdown logic ---")
+        logging.info("Stopping all scale listener threads...")
+        for item in app.state.scale_threads:
+            item["stop_event"].set()
 
-    for item in app.state.scale_threads:
-        # Daj wątkowi 2 sekundy na zakończenie
-        item["thread"].join(timeout=2)
-        if item["thread"].is_alive():
-            logging.warning(
-                f"Thread for scale {item['id']} did not terminate gracefully."
-            )
-    logging.info("All scale listener threads have been processed.")
+        for item in app.state.scale_threads:
+            # Daj wątkowi 2 sekundy na zakończenie
+            item["thread"].join(timeout=2)
+            if item["thread"].is_alive():
+                logging.warning(
+                    f"Thread for scale {item['id']} did not terminate gracefully."
+                )
+        logging.info("All scale listener threads have been processed.")
 
 
 app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION, lifespan=lifespan)
